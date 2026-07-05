@@ -111,6 +111,7 @@ add_library(lovedep::Vorbis INTERFACE IMPORTED)
 add_library(lovedep::Ogg INTERFACE IMPORTED)
 add_library(lovedep::Zlib INTERFACE IMPORTED)
 add_library(lovedep::Lua INTERFACE IMPORTED)
+add_library(lovedep::FFmpeg INTERFACE IMPORTED)
 
 if(MEGA)
 	# LOVE_MSVC_DLLS contains runtime DLLs that should be bundled with the love
@@ -145,6 +146,22 @@ if(MEGA)
 	target_link_libraries(lovedep::Vorbis INTERFACE ${MEGA_LIBVORBIS} ${MEGA_LIBVORBISFILE})
 	target_link_libraries(lovedep::Ogg INTERFACE ${MEGA_LIBOGG})
 	target_link_libraries(lovedep::Zlib INTERFACE ${MEGA_ZLIB})
+
+	# megasource now vendors a prebuilt FFmpeg for arm64-v8a under
+	# libs/FFmpeg/ (cross-compiled with the NDK; see MP4_SUPPORT_README.md
+	# for the exact ./configure invocation used). Other ABIs
+	# (armeabi-v7a, x86_64) don't have a prebuilt .so yet -- for those,
+	# MEGA_FFMPEG_LIBS is left undefined by megasource/CMakeLists.txt and
+	# love.video falls back to Theora-only, same as before this feature.
+	if(DEFINED MEGA_FFMPEG_INCLUDE AND DEFINED MEGA_FFMPEG_LIBS)
+		target_include_directories(lovedep::FFmpeg INTERFACE ${MEGA_FFMPEG_INCLUDE})
+		target_link_libraries(lovedep::FFmpeg INTERFACE ${MEGA_FFMPEG_LIBS})
+	else()
+		message(WARNING "MEGA_FFMPEG_INCLUDE/MEGA_FFMPEG_LIBS not defined by megasource; "
+			"love.video MP4 support (love_video_mp4) will not be built. "
+			"See the TODO above CMakeLists.txt near this warning.")
+		set(LOVE_FFMPEG_AVAILABLE FALSE)
+	endif()
 
 	if(LOVE_JIT)
 		target_include_directories(lovedep::Lua INTERFACE ${MEGA_LUAJIT_INCLUDE})
@@ -210,6 +227,30 @@ Please see https://github.com/love2d/megasource
 	find_package(ZLIB REQUIRED)
 	target_include_directories(lovedep::Zlib INTERFACE ${ZLIB_INCLUDE_DIRS})
 	target_link_libraries(lovedep::Zlib INTERFACE ${ZLIB_LIBRARY})
+
+	# FFmpeg backs love.video's MP4 support (love_video_mp4). It's kept
+	# optional/soft-required: systems without FFmpeg's dev packages
+	# installed can still build LOVE with Theora-only video support,
+	# same as before this feature was added.
+	find_package(PkgConfig)
+	set(LOVE_FFMPEG_AVAILABLE FALSE)
+	if(PkgConfig_FOUND)
+		pkg_check_modules(FFMPEG QUIET libavformat libavcodec libswscale libavutil libswresample)
+		if(FFMPEG_FOUND)
+			target_include_directories(lovedep::FFmpeg INTERFACE ${FFMPEG_INCLUDE_DIRS})
+			target_link_libraries(lovedep::FFmpeg INTERFACE ${FFMPEG_LIBRARIES})
+			target_link_directories(lovedep::FFmpeg INTERFACE ${FFMPEG_LIBRARY_DIRS})
+			set(LOVE_FFMPEG_AVAILABLE TRUE)
+		endif()
+	endif()
+	if(NOT LOVE_FFMPEG_AVAILABLE)
+		message(WARNING "FFmpeg (libavformat/libavcodec/libswscale/libswresample) "
+			"not found via pkg-config; love.video MP4 support (love_video_mp4) "
+			"and MP4 audio extraction (MP4AudioDecoder) will not be built. "
+			"Install e.g. 'libavformat-dev libavcodec-dev libswscale-dev "
+			"libavutil-dev libswresample-dev' (Debian/Ubuntu) or the equivalent "
+			"for your system to enable them.")
+	endif()
 
 	if(LOVE_JIT)
 		find_package(LuaJIT REQUIRED)
@@ -1070,6 +1111,20 @@ target_link_libraries(love_sound_lullaby PUBLIC
 	lovedep::Ogg
 )
 
+# MP4AudioDecoder.cpp/.h are added to this target conditionally, right
+# below, once LOVE_FFMPEG_AVAILABLE (detected earlier in this file,
+# alongside the other lovedep:: dependencies) is known.
+if(LOVE_FFMPEG_AVAILABLE)
+	target_sources(love_sound_lullaby PRIVATE
+		src/modules/sound/lullaby/MP4AudioDecoder.cpp
+		src/modules/sound/lullaby/MP4AudioDecoder.h
+	)
+	target_link_libraries(love_sound_lullaby PUBLIC
+		lovedep::FFmpeg
+	)
+	target_compile_definitions(love_sound_lullaby PUBLIC LOVE_FFMPEG_AVAILABLE)
+endif()
+
 add_library(love_sound INTERFACE)
 target_link_libraries(love_sound INTERFACE
 	love_sound_root
@@ -1225,6 +1280,29 @@ target_link_libraries(love_video INTERFACE
 	love_video_root
 	love_video_theora
 )
+
+# love.video MP4 support (via FFmpeg), see wrap_Video.cpp for the
+# runtime probe/dispatch logic between this and love_video_theora above.
+# Only built when FFmpeg was actually found (see LOVE_FFMPEG_AVAILABLE
+# above); otherwise love.video falls back to Theora-only, and
+# love.video.newVideoStream() will raise a normal Lua error for MP4 files
+# instead of silently misbehaving.
+if(LOVE_FFMPEG_AVAILABLE)
+	add_library(love_video_mp4 STATIC
+		src/modules/video/mp4/Video.cpp
+		src/modules/video/mp4/Video.h
+		src/modules/video/mp4/MP4VideoStream.cpp
+		src/modules/video/mp4/MP4VideoStream.h
+	)
+	target_link_libraries(love_video_mp4 PUBLIC
+		lovedep::FFmpeg
+	)
+
+	target_link_libraries(love_video INTERFACE
+		love_video_mp4
+	)
+	target_compile_definitions(love_video_root PUBLIC LOVE_FFMPEG_AVAILABLE)
+endif()
 
 #
 # love.window

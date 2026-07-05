@@ -25,6 +25,10 @@
 #include "wrap_Video.h"
 #include "wrap_VideoStream.h"
 
+#ifdef LOVE_FFMPEG_AVAILABLE
+#include "mp4/Video.h"
+#endif
+
 namespace love
 {
 namespace video
@@ -32,6 +36,14 @@ namespace video
 
 #define instance() (Module::getInstance<Video>(Module::M_VIDEO))
 
+// love.video is exposed to Lua as a single module, but under the hood two
+// backends exist: the original Theora/Ogg decoder, and a new FFmpeg-based
+// decoder that adds MP4 (and other libavformat-supported container)
+// support. Rather than asking the user to pick a backend, we probe the
+// file's actual contents and dispatch automatically: MP4/MOV-style
+// containers go through mp4::Video, everything else (in particular
+// classic .ogv/Ogg-Theora files) falls back to theora::Video, preserving
+// all existing behavior for games that already ship .ogv videos.
 int w_newVideoStream(lua_State *L)
 {
 	love::filesystem::File *file = love::filesystem::luax_getfile(L, 1);
@@ -42,7 +54,20 @@ int w_newVideoStream(lua_State *L)
 		if (!file->isOpen() && !file->open(love::filesystem::File::MODE_READ))
 			luaL_error(L, "File is not open and cannot be opened");
 
-		stream = instance()->newVideoStream(file);
+#ifdef LOVE_FFMPEG_AVAILABLE
+		if (mp4::Video::canDecode(file))
+		{
+			static mp4::Video *mp4Instance = nullptr;
+			if (mp4Instance == nullptr)
+				mp4Instance = new mp4::Video();
+
+			stream = mp4Instance->newVideoStream(file);
+		}
+		else
+#endif
+		{
+			stream = instance()->newVideoStream(file);
+		}
 	});
 
 	luax_pushtype(L, stream);

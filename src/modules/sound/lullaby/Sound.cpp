@@ -31,6 +31,10 @@
 #include "FLACDecoder.h"
 #include "MP3Decoder.h"
 
+#ifdef LOVE_SOUND_MP4_AVAILABLE
+#include "MP4AudioDecoder.h"
+#endif
+
 #ifdef LOVE_SUPPORT_COREAUDIO
 #	include "CoreAudioDecoder.h"
 #endif
@@ -79,6 +83,13 @@ sound::Decoder *Sound::newDecoder(Stream *stream, int bufferSize)
 		DecoderImplFor<MP3Decoder>(),
 #ifndef LOVE_NO_MODPLUG
 		DecoderImplFor<ModPlugDecoder>(), // Last because it doesn't work well with Streams.
+#endif
+#ifdef LOVE_SOUND_MP4_AVAILABLE
+		// Last of all: this backend uses libavformat's generic container
+		// probing, which is happy to at least attempt to open almost any
+		// byte stream, so it must not shadow the more specific decoders
+		// above for their own formats.
+		DecoderImplFor<MP4AudioDecoder>(),
 #endif
 	};
 
