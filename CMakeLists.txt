@@ -156,10 +156,19 @@ if(MEGA)
 	if(DEFINED MEGA_FFMPEG_INCLUDE AND DEFINED MEGA_FFMPEG_LIBS)
 		target_include_directories(lovedep::FFmpeg INTERFACE ${MEGA_FFMPEG_INCLUDE})
 		target_link_libraries(lovedep::FFmpeg INTERFACE ${MEGA_FFMPEG_LIBS})
+		# BUGFIX: this branch previously never set LOVE_FFMPEG_AVAILABLE
+		# at all, only the else() branch below set it to FALSE. Since the
+		# variable defaults to unset/FALSE-like, love_video_mp4 and
+		# MP4AudioDecoder's `if(LOVE_FFMPEG_AVAILABLE)` guards further
+		# down in this file were ALWAYS skipped on Android/MEGA builds,
+		# even when megasource successfully found every FFmpeg .so file
+		# (confirmed independently via a build-time diagnostic file).
+		# This one line is the actual fix for MP4 support not working
+		# on Android despite everything else being wired up correctly.
+		set(LOVE_FFMPEG_AVAILABLE TRUE)
 	else()
 		message(WARNING "MEGA_FFMPEG_INCLUDE/MEGA_FFMPEG_LIBS not defined by megasource; "
-			"love.video MP4 support (love_video_mp4) will not be built. "
-			"See the TODO above CMakeLists.txt near this warning.")
+			"love.video MP4 support (love_video_mp4) will not be built for this ABI/config.")
 		set(LOVE_FFMPEG_AVAILABLE FALSE)
 	endif()
 
