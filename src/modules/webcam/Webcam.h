@@ -23,7 +23,6 @@
 
 // LOVE
 #include "common/Object.h"
-#include "common/StrongRef.h"
 #include "graphics/Texture.h"
 
 namespace love
