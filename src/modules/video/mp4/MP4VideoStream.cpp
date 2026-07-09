@@ -54,7 +54,9 @@ MP4VideoStream::MP4VideoStream(love::filesystem::File *file)
 	, nextFrame(0)
 {
 	filename = file->getFilename();
-	bufferMutex.set(love::thread::newMutex(), Acquire::NORETAIN);
+	// bufferMutex (MutexRef) initializes itself via its own default
+	// constructor -- no explicit setup needed here, same as
+	// TheoraVideoStream's equivalent member.
 
 	frontBuffer = new Frame();
 	backBuffer = new Frame();
