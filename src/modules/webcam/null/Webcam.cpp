@@ -29,7 +29,6 @@ namespace null
 {
 
 Webcam::Webcam()
-	: love::webcam::Webcam("love.webcam.null")
 {
 }
 
