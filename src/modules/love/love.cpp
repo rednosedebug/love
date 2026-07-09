@@ -164,6 +164,7 @@ extern "C"
 #endif
 #if defined(LOVE_ENABLE_VIDEO)
 	extern int luaopen_love_video(lua_State*);
+	extern int luaopen_love_webcam(lua_State*);
 #endif
 #if defined(LOVE_ENABLE_WINDOW)
 	extern int luaopen_love_window(lua_State*);
@@ -236,6 +237,7 @@ static const luaL_Reg modules[] = {
 #endif
 #if defined(LOVE_ENABLE_VIDEO)
 	{ "love.video", luaopen_love_video },
+	{ "love.webcam", luaopen_love_webcam },
 #endif
 #if defined(LOVE_ENABLE_WINDOW)
 	{ "love.window", luaopen_love_window },

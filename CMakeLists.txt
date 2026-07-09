@@ -1332,6 +1332,28 @@ if(LOVE_FFMPEG_AVAILABLE)
 endif()
 
 #
+# love.webcam
+#
+# SCAFFOLDING ONLY: no real camera capture backend exists yet. This
+# just builds the Object/API shape (love.webcam.new(), Webcam:update(),
+# Webcam:getFrame(), Webcam:isOpen(), Webcam:close()) backed by a no-op
+# "null" implementation, so a real platform backend can be added later
+# without changing what Lua code sees. See src/modules/webcam/Webcam.h.
+#
+
+add_library(love_webcam STATIC
+	src/modules/webcam/Webcam.cpp
+	src/modules/webcam/Webcam.h
+	src/modules/webcam/null/Webcam.cpp
+	src/modules/webcam/null/Webcam.h
+	src/modules/webcam/wrap_Webcam.cpp
+	src/modules/webcam/wrap_Webcam.h
+)
+target_link_libraries(love_webcam PUBLIC
+	love_graphics_root
+)
+
+#
 # love.window
 #
 
@@ -2036,6 +2058,7 @@ set(LIBLOVE_DEPENDENCIES
 	love_timer
 	love_touch
 	love_video
+	love_webcam
 	love_window
 )
 set(LIBLOVE_LIBRARIES
