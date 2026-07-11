@@ -20,6 +20,7 @@
 
 #include "wrap_Webcam.h"
 #include "null/Webcam.h"
+#include "common/Module.h"
 
 namespace love
 {
@@ -94,6 +95,27 @@ static const luaL_Reg webcam_functions[] =
 	{ 0, 0 }
 };
 
+/**
+ * BUGFIX: luax_register_module() dereferences w.module unconditionally
+ * (calling m.module->getName() to build the Lua metatable name), so
+ * passing nullptr here crashes immediately with a null pointer
+ * dereference the moment require("love.webcam") runs -- which, when
+ * this module was briefly enabled by default in boot.lua, crashed
+ * every single game on load, not just games that actually called
+ * love.webcam.new(). Every other love.* module gives luax_register_module
+ * a real Module instance (see love::video::theora::Video for the
+ * pattern); WebcamModule below is the minimal one for love.webcam,
+ * existing only so the module has a valid name/identity to register
+ * under. It intentionally holds no camera state -- love.webcam.new()
+ * still returns an independent Object (null::Webcam) regardless of how
+ * many WebcamModule instances exist, matching video.newVideoStream().
+ **/
+class WebcamModule : public Module
+{
+public:
+	WebcamModule() : Module(M_WEBCAM, "love.webcam") {}
+};
+
 int luaopen_webcam(lua_State *L)
 {
 	return luax_register_type(L, &Webcam::type, webcam_functions, nullptr);
@@ -113,8 +135,14 @@ static const luaL_Reg functions[] =
 
 extern "C" int luaopen_love_webcam(lua_State *L)
 {
+	static WebcamModule *instance = nullptr;
+	if (instance == nullptr)
+		instance = new WebcamModule();
+	else
+		instance->retain();
+
 	WrappedModule w;
-	w.module = nullptr;
+	w.module = instance;
 	w.name = "webcam";
 	w.type = &Module::type;
 	w.functions = functions;

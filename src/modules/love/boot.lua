@@ -221,7 +221,7 @@ function love.init()
 			thread = true,
 			window = true,
 			video = true,
-			webcam = true,
+			webcam = false, -- opt-in only; must be enabled explicitly via t.modules.webcam = true in conf.lua
 		},
 		audio = {
 			mixwithsystem = true, -- Only relevant for Android / iOS.

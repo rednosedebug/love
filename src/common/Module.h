@@ -58,6 +58,7 @@ public:
 		M_TIMER,
 		M_TOUCH,
 		M_VIDEO,
+		M_WEBCAM,
 		M_WINDOW,
 		M_MAX_ENUM
 	};
